@@ -26,7 +26,8 @@ func main() {
 	defer pool.Close()
 
 	queries := db.New(pool)
-	checkService := service.NewCheckService(queries)
+	notificationService := service.NewNotificationService(queries)
+	checkService := service.NewCheckService(queries, notificationService)
 
 	go checkService.Start(ctx)
 

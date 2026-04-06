@@ -10,11 +10,12 @@ import (
 )
 
 type CheckService struct {
-	db *db.Queries
+	db            *db.Queries
+	notifications *NotificationService
 }
 
-func NewCheckService(queries *db.Queries) *CheckService {
-	return &CheckService{db: queries}
+func NewCheckService(queries *db.Queries, notifications *NotificationService) *CheckService {
+	return &CheckService{db: queries, notifications: notifications}
 }
 
 func (s *CheckService) Start(ctx context.Context) {
@@ -75,7 +76,7 @@ func (s *CheckService) executeCheck(ctx context.Context, svc db.Service) {
 		resp.Body.Close()
 	}
 
-	_, dbErr := s.db.CreateCheck(ctx, db.CreateCheckParams{
+	check, dbErr := s.db.CreateCheck(ctx, db.CreateCheckParams{
 		ServiceID:  svc.ID,
 		Success:    success,
 		StatusCode: statusCode,
@@ -85,6 +86,8 @@ func (s *CheckService) executeCheck(ctx context.Context, svc db.Service) {
 		log.Printf("failed to save check for %s: %v", svc.Name, dbErr)
 		return
 	}
+
+	s.notifications.CheckAndNotify(ctx, svc, check)
 
 	status := "OK"
 	if !success {
