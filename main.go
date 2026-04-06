@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"upchecks-backend/internal/db"
 	"upchecks-backend/service"
@@ -13,7 +14,10 @@ import (
 
 func main() {
 	ctx := context.Background()
-	dsn := "postgres://postgres:J1GqBcXeltc156Bl97TPUSMj0yEUDGWkE98kYhtx6c8rt2kA7M7gtJSZbmoXyR8O@localhost:5432/upchecks"
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal("DATABASE_URL environment variable is required")
+	}
 
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
