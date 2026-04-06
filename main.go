@@ -5,10 +5,13 @@ import (
 	"log"
 	"os"
 
+	"net/http"
+
 	"upchecks-backend/internal/db"
 	"upchecks-backend/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -35,6 +38,41 @@ func main() {
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "running"})
+	})
+
+	r.GET("/services/:id/stats", func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service id"})
+			return
+		}
+
+		svc, err := queries.GetServiceByID(c.Request.Context(), id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+
+		stats, err := queries.GetServiceStats(c.Request.Context(), id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get stats"})
+			return
+		}
+
+		var uptimePercent float64
+		if stats.TotalChecks > 0 {
+			uptimePercent = float64(stats.SuccessfulChecks) / float64(stats.TotalChecks) * 100
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"service":         svc.Name,
+			"endpoint":        svc.Endpoint,
+			"total_checks":    stats.TotalChecks,
+			"uptime_percent":  uptimePercent,
+			"avg_latency_ms":  stats.AvgLatency,
+			"last_latency_ms": stats.LastLatency,
+			"last_success":    stats.LastSuccess,
+		})
 	})
 
 	if err := r.Run(":8080"); err != nil {

@@ -19,6 +19,7 @@ type Querier interface {
 	GetNotificationChannelByID(ctx context.Context, id uuid.UUID) (NotificationChannel, error)
 	GetNotificationRulesForService(ctx context.Context, serviceID uuid.UUID) ([]NotificationRule, error)
 	GetServiceByID(ctx context.Context, id uuid.UUID) (Service, error)
+	GetServiceStats(ctx context.Context, serviceID uuid.UUID) (GetServiceStatsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

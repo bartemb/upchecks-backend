@@ -42,3 +42,35 @@ func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check
 	)
 	return i, err
 }
+
+const getServiceStats = `-- name: GetServiceStats :one
+SELECT
+    COUNT(*)::int AS total_checks,
+    COUNT(*) FILTER (WHERE success = true)::int AS successful_checks,
+    COALESCE(AVG(latency), 0)::int AS avg_latency,
+    COALESCE((SELECT c2.latency FROM checks c2 WHERE c2.service_id = $1 ORDER BY c2.created_at DESC LIMIT 1), 0)::int AS last_latency,
+    COALESCE((SELECT c3.success FROM checks c3 WHERE c3.service_id = $1 ORDER BY c3.created_at DESC LIMIT 1), false)::bool AS last_success
+FROM checks
+WHERE service_id = $1
+`
+
+type GetServiceStatsRow struct {
+	TotalChecks      int32 `json:"total_checks"`
+	SuccessfulChecks int32 `json:"successful_checks"`
+	AvgLatency       int32 `json:"avg_latency"`
+	LastLatency      int32 `json:"last_latency"`
+	LastSuccess      bool  `json:"last_success"`
+}
+
+func (q *Queries) GetServiceStats(ctx context.Context, serviceID uuid.UUID) (GetServiceStatsRow, error) {
+	row := q.db.QueryRow(ctx, getServiceStats, serviceID)
+	var i GetServiceStatsRow
+	err := row.Scan(
+		&i.TotalChecks,
+		&i.SuccessfulChecks,
+		&i.AvgLatency,
+		&i.LastLatency,
+		&i.LastSuccess,
+	)
+	return i, err
+}
