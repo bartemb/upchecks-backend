@@ -13,7 +13,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	dsn := "postgres://postgres:postgres@localhost:5433/upchecks?sslmode=disable"
+	dsn := "postgres://postgres:postgres@localhost:5432/upchecks?sslmode=disable"
 
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
