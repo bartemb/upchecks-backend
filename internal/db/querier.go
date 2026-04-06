@@ -14,12 +14,13 @@ type Querier interface {
 	CreateCheck(ctx context.Context, arg CreateCheckParams) (Check, error)
 	CreateNotificationHistory(ctx context.Context, arg CreateNotificationHistoryParams) (NotificationHistory, error)
 	GetAllServices(ctx context.Context) ([]Service, error)
+	GetLastCheck(ctx context.Context, serviceID uuid.UUID) (Check, error)
 	GetLastNChecksByService(ctx context.Context, arg GetLastNChecksByServiceParams) ([]Check, error)
 	GetLastNotificationForRule(ctx context.Context, ruleID uuid.UUID) (NotificationHistory, error)
 	GetNotificationChannelByID(ctx context.Context, id uuid.UUID) (NotificationChannel, error)
 	GetNotificationRulesForService(ctx context.Context, serviceID uuid.UUID) ([]NotificationRule, error)
 	GetServiceByID(ctx context.Context, id uuid.UUID) (Service, error)
-	GetServiceStats(ctx context.Context, serviceID uuid.UUID) (GetServiceStatsRow, error)
+	GetUptimeForPeriod(ctx context.Context, arg GetUptimeForPeriodParams) (GetUptimeForPeriodRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

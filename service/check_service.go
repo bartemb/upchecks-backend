@@ -152,9 +152,11 @@ func (s *CheckService) checkHTTP(endpoint string) (success bool, statusCode *int
 }
 
 func (s *CheckService) checkSMTP(endpoint string) (success bool, latency int64) {
-	// Ensure host:port format, default to :587 for STARTTLS
-	host := endpoint
-	if _, _, err := net.SplitHostPort(endpoint); err != nil {
+	// Parse host and port, default to :587 for STARTTLS
+	host, _, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		// No port specified, use hostname as-is and default to 587
+		host = endpoint
 		endpoint = endpoint + ":587"
 	}
 

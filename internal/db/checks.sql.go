@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createCheck = `-- name: CreateCheck :one
@@ -43,34 +44,51 @@ func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check
 	return i, err
 }
 
-const getServiceStats = `-- name: GetServiceStats :one
+const getLastCheck = `-- name: GetLastCheck :one
+SELECT id, service_id, success, status_code, latency, created_at FROM checks
+WHERE service_id = $1
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLastCheck(ctx context.Context, serviceID uuid.UUID) (Check, error) {
+	row := q.db.QueryRow(ctx, getLastCheck, serviceID)
+	var i Check
+	err := row.Scan(
+		&i.ID,
+		&i.ServiceID,
+		&i.Success,
+		&i.StatusCode,
+		&i.Latency,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUptimeForPeriod = `-- name: GetUptimeForPeriod :one
 SELECT
     COUNT(*)::int AS total_checks,
     COUNT(*) FILTER (WHERE success = true)::int AS successful_checks,
-    COALESCE(AVG(latency), 0)::int AS avg_latency,
-    COALESCE((SELECT c2.latency FROM checks c2 WHERE c2.service_id = $1 ORDER BY c2.created_at DESC LIMIT 1), 0)::int AS last_latency,
-    COALESCE((SELECT c3.success FROM checks c3 WHERE c3.service_id = $1 ORDER BY c3.created_at DESC LIMIT 1), false)::bool AS last_success
+    COALESCE(AVG(latency), 0)::int AS avg_latency
 FROM checks
 WHERE service_id = $1
+  AND created_at >= now() - $2::interval
 `
 
-type GetServiceStatsRow struct {
+type GetUptimeForPeriodParams struct {
+	ServiceID uuid.UUID       `json:"service_id"`
+	Column2   pgtype.Interval `json:"column_2"`
+}
+
+type GetUptimeForPeriodRow struct {
 	TotalChecks      int32 `json:"total_checks"`
 	SuccessfulChecks int32 `json:"successful_checks"`
 	AvgLatency       int32 `json:"avg_latency"`
-	LastLatency      int32 `json:"last_latency"`
-	LastSuccess      bool  `json:"last_success"`
 }
 
-func (q *Queries) GetServiceStats(ctx context.Context, serviceID uuid.UUID) (GetServiceStatsRow, error) {
-	row := q.db.QueryRow(ctx, getServiceStats, serviceID)
-	var i GetServiceStatsRow
-	err := row.Scan(
-		&i.TotalChecks,
-		&i.SuccessfulChecks,
-		&i.AvgLatency,
-		&i.LastLatency,
-		&i.LastSuccess,
-	)
+func (q *Queries) GetUptimeForPeriod(ctx context.Context, arg GetUptimeForPeriodParams) (GetUptimeForPeriodRow, error) {
+	row := q.db.QueryRow(ctx, getUptimeForPeriod, arg.ServiceID, arg.Column2)
+	var i GetUptimeForPeriodRow
+	err := row.Scan(&i.TotalChecks, &i.SuccessfulChecks, &i.AvgLatency)
 	return i, err
 }
